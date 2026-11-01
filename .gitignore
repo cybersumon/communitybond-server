@@ -1,0 +1,17 @@
+
+# Installed dependencies
+node_modules/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Compiled output
+dist/
+
+# Logs
+*.log
+
+# Local editor files
+.vscode/
