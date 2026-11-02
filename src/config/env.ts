@@ -35,6 +35,7 @@ export const env = {
   CLIENT_URL: requireEnv("CLIENT_URL"),
   DB_NAME: requireEnv("DB_NAME"),
   MONGODB_URI: requireEnv("MONGODB_URI"),
+  AUTH_BASE_URL: requireEnv("AUTH_BASE_URL"),
 };
 
 // Reject an invalid port before starting the server.

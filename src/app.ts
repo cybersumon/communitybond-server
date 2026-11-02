@@ -1,7 +1,7 @@
 
 import express from "express";
 import cors from "cors";
-
+import authTestRoutes from "./routes/auth-test.routes.js";
 import { env } from "./config/env.js";
 
 import healthRoutes from "./routes/health.routes.js";
@@ -32,6 +32,9 @@ app.use("/api/health", healthRoutes);
 
 // Public event reading routes.
 app.use("/api/events", eventRoutes);
+
+// Protected authentication test endpoint.
+app.use("/api/auth-test", authTestRoutes);
 
 // Handle unknown endpoints.
 app.use((_req, res) => {
