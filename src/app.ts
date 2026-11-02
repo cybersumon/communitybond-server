@@ -7,12 +7,9 @@ import { env } from "./config/env.js";
 import healthRoutes from "./routes/health.routes.js";
 import eventRoutes from "./routes/event.routes.js";
 
-/**
- * CommunityBond Express Application
- *
- * PURPOSE:
- * Configure middleware and register API routes.
- */
+
+// Configure middleware and register API routes.
+ 
 
 const app = express();
 
