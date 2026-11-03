@@ -1,5 +1,7 @@
 import { createEvent } from "../services/event.service.js";
-import { createEventSchema } from "../validators/create-event.validation.js";
+import {
+  createEventValidation,
+} from "../validators/create-event.validation.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { Router } from "express";
 
@@ -44,7 +46,7 @@ const router = Router();
  */
 router.post("/", requireAuth, async (req, res) => {
   // Validate event input before accessing the database.
-  const validation = createEventSchema.safeParse(req.body);
+ const validation = createEventValidation.safeParse(req.body);
 
   if (!validation.success) {
     res.status(400).json({
