@@ -230,3 +230,59 @@ export async function getMyEvents(
   // Convert MongoDB documents into API responses.
   return events.map(toEventResponse);
 }
+
+
+/**
+ * DELETE EVENT
+ *
+ * PURPOSE:
+ * Permanently delete an event created by the
+ * currently authenticated organizer.
+ *
+ * SECURITY:
+ * - Validate the MongoDB ObjectId.
+ * - Check that the event exists.
+ * - Verify organizer ownership.
+ * - Include organizer ID in deleteOne filter.
+ */
+
+export async function deleteEvent(
+  eventId: string,
+  authenticatedUserId: string
+): Promise<void> {
+  // Validate event ID.
+  if (!/^[a-fA-F0-9]{24}$/.test(eventId)) {
+    throw new Error("INVALID_EVENT_ID");
+  }
+
+  const collection = getEventsCollection();
+  const objectId = new ObjectId(eventId);
+
+  // Find the existing event.
+  const existingEvent = await collection.findOne({
+    _id: objectId,
+  });
+
+  if (!existingEvent) {
+    throw new Error("EVENT_NOT_FOUND");
+  }
+
+  // Only the original organizer can delete.
+  if (
+    existingEvent.organizer.id !==
+    authenticatedUserId
+  ) {
+    throw new Error("FORBIDDEN");
+  }
+
+  // Atomic ownership-aware deletion.
+  const result = await collection.deleteOne({
+    _id: objectId,
+    "organizer.id": authenticatedUserId,
+  });
+
+  // Detect unsuccessful deletion.
+  if (result.deletedCount !== 1) {
+    throw new Error("EVENT_NOT_FOUND");
+  }
+}

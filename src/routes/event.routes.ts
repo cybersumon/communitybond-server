@@ -14,6 +14,8 @@ import {
   getEventById,
 } from "../services/event.service.js";
 
+import { deleteEvent } from "../services/event.service.js";
+
 /**
  * Event Routes
  *
@@ -236,5 +238,87 @@ router.get("/:id", async (req, res) => {
     });
   }
 });
+
+
+
+
+/**
+ * DELETE /api/events/:id
+ *
+ * PURPOSE:
+ * Delete an event owned by the logged-in user.
+ *
+ * SECURITY:
+ * - Better Auth JWT is required.
+ * - Organizer ownership is checked by the service.
+ */
+router.delete(
+  "/:id",
+  requireAuth,
+  async (req, res) => {
+    const eventId = req.params.id;
+
+    const userId = res.locals.authUserId as
+      | string
+      | undefined;
+
+    // Authentication is required.
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    // Validate the event ID format.
+    if (
+      typeof eventId !== "string" ||
+      !/^[a-fA-F0-9]{24}$/.test(eventId)
+    ) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid event ID",
+      });
+      return;
+    }
+
+    try {
+      await deleteEvent(eventId, userId);
+
+      res.status(200).json({
+        success: true,
+        message: "Event deleted successfully",
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === "FORBIDDEN") {
+          res.status(403).json({
+            success: false,
+            message:
+              "You are not allowed to delete this event",
+          });
+          return;
+        }
+
+        if (error.message === "EVENT_NOT_FOUND") {
+          res.status(404).json({
+            success: false,
+            message: "Event not found",
+          });
+          return;
+        }
+      }
+
+      console.error("Delete event failed:", error);
+
+      res.status(500).json({
+        success: false,
+        message: "Unable to delete event",
+      });
+    }
+  }
+);
+
 
 export default router;
