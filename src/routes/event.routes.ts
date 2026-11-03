@@ -16,6 +16,12 @@ import {
 
 import { deleteEvent } from "../services/event.service.js";
 
+
+import {
+  joinEvent,
+  getMyRegistrationStatus,
+} from "../services/registration.service.js";
+
 /**
  * Event Routes
  *
@@ -319,6 +325,168 @@ router.delete(
     }
   }
 );
+
+
+
+/**
+ * POST /api/events/:id/join
+ *
+ * PURPOSE:
+ * Register the authenticated user as a volunteer.
+ *
+ * SECURITY:
+ * - JWT required.
+ * - User ID comes from verified JWT.
+ * - Duplicate registration is rejected.
+ * - Organizer cannot join own event.
+ */
+router.post(
+  "/:id/join",
+  requireAuth,
+  async (req, res) => {
+    const eventId = req.params.id;
+
+    const userId = res.locals.authUserId as
+      | string
+      | undefined;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    if (
+      typeof eventId !== "string" ||
+      !/^[a-fA-F0-9]{24}$/.test(eventId)
+    ) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid event ID",
+      });
+      return;
+    }
+
+    try {
+      const registration = await joinEvent(
+        eventId,
+        userId
+      );
+
+      res.status(201).json({
+        success: true,
+        message: "Successfully joined the event",
+        data: registration,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        const statusCodes: Record<string, number> = {
+          INVALID_EVENT_ID: 400,
+          EVENT_NOT_FOUND: 404,
+          EVENT_ALREADY_STARTED: 409,
+          ORGANIZER_CANNOT_JOIN: 403,
+          ALREADY_JOINED: 409,
+        };
+
+        const errorMessages: Record<string, string> = {
+          INVALID_EVENT_ID: "Invalid event ID",
+          EVENT_NOT_FOUND: "Event not found",
+          EVENT_ALREADY_STARTED:
+            "Registration is closed for this event",
+          ORGANIZER_CANNOT_JOIN:
+            "You cannot join your own event",
+          ALREADY_JOINED:
+            "You have already joined this event",
+        };
+
+        const status = statusCodes[error.message];
+
+        if (status) {
+          res.status(status).json({
+            success: false,
+            message: errorMessages[error.message],
+          });
+          return;
+        }
+      }
+
+      console.error("Join event failed:", error);
+
+      res.status(500).json({
+        success: false,
+        message: "Unable to join event",
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/events/:id/my-registration
+ *
+ * PURPOSE:
+ * Check if the current user has joined an event.
+ *
+ * RESPONSE:
+ * joined: true  -> user is registered
+ * joined: false -> user is not registered
+ */
+router.get(
+  "/:id/my-registration",
+  requireAuth,
+  async (req, res) => {
+    const eventId = req.params.id;
+
+    const userId = res.locals.authUserId as
+      | string
+      | undefined;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    if (
+      typeof eventId !== "string" ||
+      !/^[a-fA-F0-9]{24}$/.test(eventId)
+    ) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid event ID",
+      });
+      return;
+    }
+
+    try {
+      const registration =
+        await getMyRegistrationStatus(
+          eventId,
+          userId
+        );
+
+      res.status(200).json({
+        success: true,
+        joined: registration !== null,
+        data: registration,
+      });
+    } catch (error) {
+      console.error(
+        "Registration status check failed:",
+        error
+      );
+
+      res.status(500).json({
+        success: false,
+        message: "Unable to check registration status",
+      });
+    }
+  }
+);
+
 
 
 export default router;
