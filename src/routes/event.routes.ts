@@ -3,6 +3,9 @@ import { createEventSchema } from "../validators/create-event.validation.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { Router } from "express";
 
+import { getMyEvents } from "../services/event.service.js";
+
+
 import {
   getUpcomingEvents,
   getRecentEvents,
@@ -26,7 +29,6 @@ const router = Router();
  *
  * Return all upcoming community events.
  */
-
 
 /**
  * POST /api/events
@@ -99,8 +101,6 @@ router.post("/", requireAuth, async (req, res) => {
   }
 });
 
-
-
 router.get("/", async (_req, res) => {
   try {
     const events = await getUpcomingEvents();
@@ -152,6 +152,53 @@ router.get("/recent", async (_req, res) => {
  *
  * Return one event by MongoDB ObjectId.
  */
+
+
+/**
+ * GET /api/events/my
+ *
+ * PURPOSE:
+ * Return all events owned by the authenticated user.
+ *
+ * SECURITY:
+ * - Requires a valid Better Auth JWT.
+ * - Uses the verified user ID.
+ * - Never accepts organizer ID from the browser.
+ */
+router.get("/my", requireAuth, async (_req, res) => {
+  const userId = res.locals.authUserId as
+    | string
+    | undefined;
+
+  if (!userId) {
+    res.status(401).json({
+      success: false,
+      message: "Authentication required",
+    });
+    return;
+  }
+
+  try {
+    const events = await getMyEvents(userId);
+
+    res.status(200).json({
+      success: true,
+      message: "My events retrieved successfully",
+      count: events.length,
+      data: events,
+    });
+  } catch (error) {
+    console.error("Get my events failed:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Unable to retrieve your events",
+    });
+  }
+});
+
+
+
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;

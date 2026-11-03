@@ -1,12 +1,16 @@
 
 import { ObjectId } from "mongodb";
-import type { CreateEventInput } from "../validators/create-event.validation.ts";
+
 import { getDatabase } from "../config/database.js";
 
 import type {
   EventDocument,
   EventResponse,
 } from "../types/event.types.js";
+
+import type {
+  CreateEventInput,
+} from "../validators/create-event.validation.js";
 
 /**
  * Event Service
@@ -120,7 +124,6 @@ export async function getEventById(
   return event ? toEventResponse(event) : null;
 }
 
-
 /**
  * CREATE COMMUNITY EVENT
  *
@@ -139,9 +142,8 @@ export async function createEvent(
 ): Promise<EventResponse> {
   const db = getDatabase();
 
-  // Better Auth's MongoDB IDs are expected
-  // to use MongoDB ObjectId in this setup.
-  if (!ObjectId.isValid(authenticatedUserId)) {
+  // Validate the Better Auth user ID format.
+  if (!/^[a-fA-F0-9]{24}$/.test(authenticatedUserId)) {
     throw new Error("INVALID_AUTH_USER");
   }
 
@@ -197,3 +199,34 @@ export async function createEvent(
   });
 }
 
+/**
+ * GET MY EVENTS
+ *
+ * PURPOSE:
+ * Fetch only events created by the currently
+ * authenticated CommunityBond user.
+ *
+ * SECURITY:
+ * userId comes from the verified JWT,
+ * never from request body or query parameters.
+ */
+export async function getMyEvents(
+  authenticatedUserId: string
+): Promise<EventResponse[]> {
+  // Reuse the existing events collection helper.
+  const collection = getEventsCollection();
+
+  // Match the organizer ID stored during event creation.
+  const events = await collection
+    .find({
+      "organizer.id": authenticatedUserId,
+    })
+    .sort({
+      createdAt: -1,
+      _id: -1,
+    })
+    .toArray();
+
+  // Convert MongoDB documents into API responses.
+  return events.map(toEventResponse);
+}

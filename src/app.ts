@@ -1,5 +1,7 @@
 
 import express from "express";
+import path from "node:path";
+import uploadRoutes from "./routes/upload.routes.js";
 import cors from "cors";
 import authTestRoutes from "./routes/auth-test.routes.js";
 import { env } from "./config/env.js";
@@ -32,6 +34,32 @@ app.use("/api/events", eventRoutes);
 
 // Protected authentication test endpoint.
 app.use("/api/auth-test", authTestRoutes);
+
+
+// Publicly serve uploaded event images.
+app.use(
+  "/uploads",
+  express.static(
+    path.resolve(process.env.UPLOAD_DIR || "uploads"),
+    {
+      index: false,
+      dotfiles: "deny",
+      fallthrough: false,
+      setHeaders(res) {
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.setHeader(
+          "Cache-Control",
+          "public, max-age=86400"
+        );
+      },
+    }
+  )
+);
+
+// Protected image upload endpoint.
+app.use("/api/uploads", uploadRoutes);
+
+
 
 // Handle unknown endpoints.
 app.use((_req, res) => {
