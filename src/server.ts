@@ -7,6 +7,10 @@ import {
   closeDatabase,
 } from "./config/database.js";
 
+import {
+  ensureSubscriberIndexes,
+} from "./services/subscriber.service.js";
+
 /**
  * CommunityBond API Server
  *
@@ -23,6 +27,7 @@ async function startServer() {
   try {
     // Verify MongoDB before starting the API.
     await connectDatabase();
+    await ensureSubscriberIndexes();
 
     const server = app.listen(env.PORT, () => {
       console.log(

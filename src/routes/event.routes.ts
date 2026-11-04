@@ -22,6 +22,13 @@ import {
   getMyRegistrationStatus,
 } from "../services/registration.service.js";
 
+
+import {
+  getMyJoinedEvents,
+  leaveEvent,
+  getEventParticipants,
+} from "../services/registration.service.js";
+
 /**
  * Event Routes
  *
@@ -110,6 +117,55 @@ router.post("/", requireAuth, async (req, res) => {
     });
   }
 });
+
+
+/**
+ * GET /api/events/joined
+ *
+ * PURPOSE:
+ * Return all events joined by the current user.
+ */
+router.get(
+  "/joined",
+  requireAuth,
+  async (_req, res) => {
+    const userId = res.locals.authUserId as
+      | string
+      | undefined;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    try {
+      const joinedEvents =
+        await getMyJoinedEvents(userId);
+
+      res.status(200).json({
+        success: true,
+        count: joinedEvents.length,
+        data: joinedEvents,
+      });
+    } catch (error) {
+      console.error(
+        "Get joined events failed:",
+        error
+      );
+
+      res.status(500).json({
+        success: false,
+        message: "Unable to load joined events",
+      });
+    }
+  }
+);
+
+
+
 
 router.get("/", async (_req, res) => {
   try {
@@ -488,5 +544,93 @@ router.get(
 );
 
 
+
+/**
+ * GET /api/events/:id/participants
+ *
+ * PURPOSE:
+ * Allow only the event organizer to view volunteers.
+ * The service verifies ownership using the authenticated JWT user ID.
+ */
+router.get("/:id/participants", requireAuth, async (req, res) => {
+  const eventId = req.params.id;
+  const userId = res.locals.authUserId as string | undefined;
+
+  if (!userId) {
+    res.status(401).json({ success: false, message: "Authentication required" });
+    return;
+  }
+
+  if (typeof eventId !== "string" || !/^[a-fA-F0-9]{24}$/.test(eventId)) {
+    res.status(400).json({ success: false, message: "Invalid event ID" });
+    return;
+  }
+
+  try {
+    const participants = await getEventParticipants(eventId, userId);
+    res.status(200).json({
+      success: true,
+      count: participants.length,
+      data: participants,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "EVENT_NOT_FOUND") {
+      res.status(404).json({ success: false, message: "Event not found" });
+      return;
+    }
+
+    if (error instanceof Error && error.message === "FORBIDDEN") {
+      res.status(403).json({
+        success: false,
+        message: "Only the organizer can view participants",
+      });
+      return;
+    }
+
+    console.error("Get event participants failed:", error);
+    res.status(500).json({
+      success: false,
+      message: "Unable to load participants",
+    });
+  }
+});
+
+/**
+ * DELETE /api/events/:id/join
+ *
+ * PURPOSE:
+ * Allow a volunteer to leave an event.
+ * The service only deletes a registration owned by this JWT user.
+ */
+router.delete("/:id/join", requireAuth, async (req, res) => {
+  const eventId = req.params.id;
+  const userId = res.locals.authUserId as string | undefined;
+
+  if (!userId) {
+    res.status(401).json({ success: false, message: "Authentication required" });
+    return;
+  }
+
+  if (typeof eventId !== "string" || !/^[a-fA-F0-9]{24}$/.test(eventId)) {
+    res.status(400).json({ success: false, message: "Invalid event ID" });
+    return;
+  }
+
+  try {
+    await leaveEvent(eventId, userId);
+    res.status(200).json({ success: true, message: "You have left the event" });
+  } catch (error) {
+    if (error instanceof Error && error.message === "REGISTRATION_NOT_FOUND") {
+      res.status(404).json({
+        success: false,
+        message: "You are not registered for this event",
+      });
+      return;
+    }
+
+    console.error("Leave event failed:", error);
+    res.status(500).json({ success: false, message: "Unable to leave event" });
+  }
+});
 
 export default router;
