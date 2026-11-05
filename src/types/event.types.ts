@@ -1,19 +1,6 @@
 
 import type { ObjectId } from "mongodb";
 
-/**
- * Event Types
- *
- * PURPOSE:
- * Define the shape of community events.
- *
- * DB:
- * MongoDB stores _id as an ObjectId.
- *
- * API:
- * Frontend receives id as a string.
- */
-
 export const EVENT_TYPES = [
   "Cleanup",
   "Tree Plantation",
@@ -32,9 +19,6 @@ export interface EventOrganizer {
   photoURL?: string;
 }
 
-/**
- * MongoDB document structure.
- */
 export interface EventDocument {
   _id?: ObjectId;
   title: string;
@@ -47,11 +31,6 @@ export interface EventDocument {
   organizer: EventOrganizer;
 }
 
-/**
- * Public API response structure.
- *
- * Matches the existing frontend event fields.
- */
 export interface EventResponse {
   id: string;
   title: string;

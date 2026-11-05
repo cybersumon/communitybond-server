@@ -8,27 +8,10 @@ import path from "node:path";
 
 import { requireAuth } from "../middleware/require-auth.js";
 
-/**
- * Event Image Upload
- *
- * PURPOSE:
- * Upload a local image from the user's computer.
- *
- * SECURITY:
- * - Authenticated users only
- * - Maximum 5 MB per image
- * - Only JPEG, PNG and WebP accepted
- * - Decode and convert using Sharp
- * - Generate a safe random filename
- * - Never trust the original filename
- */
-
 const router = Router();
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-// Files are served from this fixed directory.
-// Set UPLOAD_DIR to a persistent location in production.
 const uploadDirectory = path.resolve(
   process.env.UPLOAD_DIR || "uploads"
 );
@@ -63,9 +46,6 @@ const upload = multer({
   },
 });
 
-/**
- * Convert Multer errors into a JSON response.
- */
 const parseImage: RequestHandler = (req, res, next) => {
   upload.single("image")(req, res, (error: unknown) => {
     if (error) {
@@ -84,11 +64,7 @@ const parseImage: RequestHandler = (req, res, next) => {
   });
 };
 
-/**
- * POST /api/uploads/event-image
- *
- * This route requires a valid Better Auth JWT.
- */
+
 router.post(
   "/event-image",
   requireAuth,
@@ -103,13 +79,7 @@ router.post(
     }
 
     try {
-      /**
-       * Decode the actual image, rather than
-       * trusting only MIME type or file extension.
-       *
-       * Limit image dimensions to reduce
-       * decompression-bomb risks.
-       */
+     
       const metadata = await sharp(req.file.buffer, {
         limitInputPixels: 40_000_000,
       }).metadata();
@@ -126,7 +96,7 @@ router.post(
         return;
       }
 
-      // Resize and convert to WebP.
+   
       const optimizedImage = await sharp(req.file.buffer, {
         limitInputPixels: 40_000_000,
         animated: false,
@@ -141,7 +111,6 @@ router.post(
         .webp({ quality: 82 })
         .toBuffer();
 
-      // Generate a filename without user input.
       const filename = `${randomUUID()}.webp`;
 
       await mkdir(uploadDirectory, {
@@ -154,7 +123,6 @@ router.post(
         { flag: "wx" }
       );
 
-      // Use the server's own configured public URL.
       const baseUrl = (
         process.env.PUBLIC_API_BASE_URL ||
         "http://localhost:5000"

@@ -11,21 +11,8 @@ import {
   ensureSubscriberIndexes,
 } from "./services/subscriber.service.js";
 
-/**
- * CommunityBond API Server
- *
- * STARTUP ORDER:
- * 1. Connect to MongoDB.
- * 2. Start Express.
- * 3. Listen for incoming API requests.
- *
- * WHY:
- * Avoid accepting normal API requests before
- * the database connection is established.
- */
 async function startServer() {
   try {
-    // Verify MongoDB before starting the API.
     await connectDatabase();
     await ensureSubscriberIndexes();
 
@@ -35,7 +22,6 @@ async function startServer() {
       );
     });
 
-    // Handle controlled application shutdown.
     async function shutdown() {
       console.log("Shutting down CommunityBond API...");
 
@@ -56,5 +42,5 @@ async function startServer() {
   }
 }
 
-// Start the application.
+
 void startServer();

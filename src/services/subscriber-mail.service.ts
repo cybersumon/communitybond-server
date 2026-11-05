@@ -1,12 +1,6 @@
 
 import nodemailer from "nodemailer";
 
-/**
- * Send a welcome email containing
- * a secure unsubscribe link.
- *
- * SMTP is optional during local development.
- */
 export async function sendSubscriptionWelcomeEmail(
   email: string,
   unsubscribeToken: string

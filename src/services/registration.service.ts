@@ -21,23 +21,6 @@ import type {
   EventParticipantResponse,
 } from "../types/registration.types.js";
 
-/**
- * Volunteer Registration Service
- *
- * PURPOSE:
- * - Join an upcoming community event.
- * - Prevent duplicate registrations.
- * - Prevent organizers from joining their own events.
- * - Check the logged-in user's registration status.
- *
- * SECURITY:
- * User ID must come from the verified JWT.
- */
-
-
-// MongoDB Collections
-
-
 function getRegistrationsCollection() {
   return getDatabase().collection<EventRegistrationDocument>(
     "event_registrations"
@@ -49,10 +32,6 @@ function getEventsCollection() {
     "events"
   );
 }
-
-
-// MongoDB Document to API Response
-
 
 function toRegistrationResponse(
   registration: EventRegistrationDocument
@@ -70,17 +49,10 @@ function toRegistrationResponse(
   };
 }
 
-
-// Unique Registration Index
-
-
 let registrationIndexPromise:
   Promise<string | undefined> | undefined;
 
-/**
- * A unique compound index prevents the same
- * user from joining the same event twice.
- */
+
 export function ensureRegistrationIndexes() {
   if (!registrationIndexPromise) {
     registrationIndexPromise =
@@ -105,26 +77,19 @@ export function ensureRegistrationIndexes() {
   return registrationIndexPromise;
 }
 
-// Join Event
 
-/**
- * Register the authenticated user for an event.
- *
- * @param eventId MongoDB Event ID
- * @param authenticatedUserId Verified JWT user ID
- */
 export async function joinEvent(
   eventId: string,
   authenticatedUserId: string
 ): Promise<EventRegistrationResponse> {
-  // Validate the Event ID.
+
   if (!/^[a-fA-F0-9]{24}$/.test(eventId)) {
     throw new Error("INVALID_EVENT_ID");
   }
 
   const normalizedEventId = eventId.toLowerCase();
 
-  // Find the event.
+
   const event = await getEventsCollection().findOne({
     _id: new ObjectId(normalizedEventId),
   });
@@ -133,17 +98,15 @@ export async function joinEvent(
     throw new Error("EVENT_NOT_FOUND");
   }
 
-  // Registration closes when the event starts.
+
   if (event.eventDate.getTime() <= Date.now()) {
     throw new Error("EVENT_ALREADY_STARTED");
   }
 
-  // Organizer cannot join their own event.
   if (event.organizer.id === authenticatedUserId) {
     throw new Error("ORGANIZER_CANNOT_JOIN");
   }
 
-  // Enforce database-level duplicate protection.
   await ensureRegistrationIndexes();
 
   const newRegistration: EventRegistrationDocument = {
@@ -154,7 +117,6 @@ export async function joinEvent(
   };
 
   try {
-    // Save the volunteer registration.
     const result =
       await getRegistrationsCollection().insertOne(
         newRegistration
@@ -165,7 +127,6 @@ export async function joinEvent(
       _id: result.insertedId,
     });
   } catch (error) {
-    // MongoDB duplicate key error.
     if (
       error instanceof MongoServerError &&
       error.code === 11000
@@ -177,14 +138,7 @@ export async function joinEvent(
   }
 }
 
-// Registration Status
 
-/**
- * Check if the logged-in user already joined
- * a particular event.
- *
- * Returns null if no registration exists.
- */
 export async function getMyRegistrationStatus(
   eventId: string,
   authenticatedUserId: string
@@ -206,12 +160,6 @@ export async function getMyRegistrationStatus(
   return toRegistrationResponse(registration);
 }
 
-/**
- * Convert an event document into
- * the existing public API response structure.
- *
- * This follows the same shape as event.service.ts.
- */
 function toPublicEvent(
   event: EventDocument
 ): EventResponse {
@@ -232,20 +180,10 @@ function toPublicEvent(
   };
 }
 
-/**
- * GET MY JOINED EVENTS
- *
- * PURPOSE:
- * Retrieve all events joined by the
- * authenticated volunteer.
- *
- * SECURITY:
- * User ID comes from verified JWT.
- */
+
 export async function getMyJoinedEvents(
   authenticatedUserId: string
 ): Promise<JoinedEventResponse[]> {
-  // Find only this user's registrations.
   const registrations =
     await getRegistrationsCollection()
       .find({
@@ -259,7 +197,6 @@ export async function getMyJoinedEvents(
     return [];
   }
 
-  // Collect MongoDB event IDs.
   const eventIds = registrations
     .filter((item) =>
       /^[a-fA-F0-9]{24}$/.test(item.eventId)
@@ -270,23 +207,18 @@ export async function getMyJoinedEvents(
     return [];
   }
 
-  // Fetch all relevant event documents.
   const events = await getEventsCollection()
     .find({
       _id: { $in: eventIds },
     })
     .toArray();
 
-  // Create a lookup for efficient matching.
   const eventMap = new Map(
     events.map((event) => [
       event._id!.toHexString(),
       event,
     ])
   );
-
-  // Combine each registration with its event.
-  // Missing/deleted events are excluded.
   const joinedEvents: JoinedEventResponse[] = [];
 
   for (const registration of registrations) {
@@ -306,20 +238,6 @@ export async function getMyJoinedEvents(
   return joinedEvents;
 }
 
-/**
- * LEAVE EVENT
- *
- * PURPOSE:
- * Remove the authenticated user's
- * registration from an event.
- *
- * SECURITY:
- * Only the registration belonging to
- * the current JWT user can be deleted.
- *
- * NOTE:
- * The event itself is never deleted.
- */
 export async function leaveEvent(
   eventId: string,
   authenticatedUserId: string
@@ -340,18 +258,6 @@ export async function leaveEvent(
   }
 }
 
-/**
- * GET EVENT PARTICIPANTS
- *
- * PURPOSE:
- * Allow organizers to view registered
- * volunteers for their own event.
- *
- * SECURITY:
- * - Event must exist.
- * - Only its organizer may access the list.
- * - Return limited user profile information.
- */
 export async function getEventParticipants(
   eventId: string,
   authenticatedUserId: string
@@ -368,14 +274,12 @@ export async function getEventParticipants(
     throw new Error("EVENT_NOT_FOUND");
   }
 
-  // Verify that the logged-in user is organizer.
   if (
     event.organizer.id !== authenticatedUserId
   ) {
     throw new Error("FORBIDDEN");
   }
 
-  // Fetch registrations for this event.
   const registrations =
     await getRegistrationsCollection()
       .find({
@@ -389,7 +293,6 @@ export async function getEventParticipants(
     return [];
   }
 
-  // Only use valid Better Auth MongoDB user IDs.
   const userIds = registrations
     .filter((registration) =>
       /^[a-fA-F0-9]{24}$/.test(registration.userId)
@@ -399,7 +302,6 @@ export async function getEventParticipants(
         new ObjectId(registration.userId)
     );
 
-  // Fetch minimal public profile fields.
   const users = await getDatabase()
     .collection<{
       _id: ObjectId;
@@ -426,7 +328,6 @@ export async function getEventParticipants(
     ])
   );
 
-  // Build safe participant responses.
   return registrations
     .filter((registration) =>
       Boolean(

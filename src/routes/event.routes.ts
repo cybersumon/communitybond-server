@@ -29,38 +29,10 @@ import {
   getEventParticipants,
 } from "../services/registration.service.js";
 
-/**
- * Event Routes
- *
- * GET /api/events
- * GET /api/events/recent
- * GET /api/events/:id
- *
- * These are public, read-only routes.
- */
-
 const router = Router();
 
-/**
- * GET /api/events
- *
- * Return all upcoming community events.
- */
-
-/**
- * POST /api/events
- *
- * PURPOSE:
- * Create an event for an authenticated user.
- *
- * SECURITY:
- * 1. Verify Better Auth JWT.
- * 2. Validate request body.
- * 3. Read organizer identity from verified JWT.
- * 4. Insert the event into MongoDB.
- */
 router.post("/", requireAuth, async (req, res) => {
-  // Validate event input before accessing the database.
+
  const validation = createEventValidation.safeParse(req.body);
 
   if (!validation.success) {
@@ -71,8 +43,6 @@ router.post("/", requireAuth, async (req, res) => {
     });
     return;
   }
-
-  // Identity is supplied by our JWT middleware.
   const userId = res.locals.authUserId as string | undefined;
 
   if (!userId) {
@@ -84,7 +54,7 @@ router.post("/", requireAuth, async (req, res) => {
   }
 
   try {
-    // Create an event owned by the authenticated user.
+
     const event = await createEvent(
       validation.data,
       userId
@@ -108,7 +78,6 @@ router.post("/", requireAuth, async (req, res) => {
       return;
     }
 
-    // Log server errors without exposing details publicly.
     console.error("Create event failed:", error);
 
     res.status(500).json({
@@ -118,13 +87,6 @@ router.post("/", requireAuth, async (req, res) => {
   }
 });
 
-
-/**
- * GET /api/events/joined
- *
- * PURPOSE:
- * Return all events joined by the current user.
- */
 router.get(
   "/joined",
   requireAuth,
@@ -164,9 +126,6 @@ router.get(
   }
 );
 
-
-
-
 router.get("/", async (_req, res) => {
   try {
     const events = await getUpcomingEvents();
@@ -186,14 +145,6 @@ router.get("/", async (_req, res) => {
   }
 });
 
-/**
- * GET /api/events/recent
- *
- * Return up to six latest upcoming events.
- *
- * IMPORTANT:
- * Keep this route BEFORE /:id.
- */
 router.get("/recent", async (_req, res) => {
   try {
     const events = await getRecentEvents();
@@ -213,24 +164,6 @@ router.get("/recent", async (_req, res) => {
   }
 });
 
-/**
- * GET /api/events/:id
- *
- * Return one event by MongoDB ObjectId.
- */
-
-
-/**
- * GET /api/events/my
- *
- * PURPOSE:
- * Return all events owned by the authenticated user.
- *
- * SECURITY:
- * - Requires a valid Better Auth JWT.
- * - Uses the verified user ID.
- * - Never accepts organizer ID from the browser.
- */
 router.get("/my", requireAuth, async (_req, res) => {
   const userId = res.locals.authUserId as
     | string
@@ -301,19 +234,6 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-
-
-
-/**
- * DELETE /api/events/:id
- *
- * PURPOSE:
- * Delete an event owned by the logged-in user.
- *
- * SECURITY:
- * - Better Auth JWT is required.
- * - Organizer ownership is checked by the service.
- */
 router.delete(
   "/:id",
   requireAuth,
@@ -324,7 +244,6 @@ router.delete(
       | string
       | undefined;
 
-    // Authentication is required.
     if (!userId) {
       res.status(401).json({
         success: false,
@@ -382,20 +301,6 @@ router.delete(
   }
 );
 
-
-
-/**
- * POST /api/events/:id/join
- *
- * PURPOSE:
- * Register the authenticated user as a volunteer.
- *
- * SECURITY:
- * - JWT required.
- * - User ID comes from verified JWT.
- * - Duplicate registration is rejected.
- * - Organizer cannot join own event.
- */
 router.post(
   "/:id/join",
   requireAuth,
@@ -478,16 +383,6 @@ router.post(
   }
 );
 
-/**
- * GET /api/events/:id/my-registration
- *
- * PURPOSE:
- * Check if the current user has joined an event.
- *
- * RESPONSE:
- * joined: true  -> user is registered
- * joined: false -> user is not registered
- */
 router.get(
   "/:id/my-registration",
   requireAuth,

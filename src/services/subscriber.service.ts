@@ -12,9 +12,6 @@ import {
 
 import { getDatabase } from "../config/database.js";
 
-/**
- * MongoDB subscriber document.
- */
 interface SubscriberDocument {
   _id?: ObjectId;
   email: string;
@@ -22,27 +19,18 @@ interface SubscriberDocument {
   unsubscribeTokenHash: string;
 }
 
-/**
- * Use the existing MongoDB connection.
- */
 function collection(): Collection<SubscriberDocument> {
   return getDatabase().collection<SubscriberDocument>(
     "cause_subscribers"
   );
 }
 
-/**
- * Never store the raw unsubscribe token.
- */
 function hashToken(value: string): string {
   return createHash("sha256")
     .update(value)
     .digest("hex");
 }
 
-/**
- * Create unique indexes after MongoDB connects.
- */
 export async function ensureSubscriberIndexes(): Promise<void> {
   await collection().createIndex(
     { email: 1 },
@@ -71,12 +59,6 @@ export type SubscribeResult =
       kind: "existing";
     };
 
-/**
- * Subscribe a user.
- *
- * Prevent duplicate subscriptions using
- * the MongoDB unique email index.
- */
 export async function subscribeToCauses(
   email: string
 ): Promise<SubscribeResult> {
@@ -107,10 +89,6 @@ export async function subscribeToCauses(
     throw error;
   }
 }
-
-/**
- * Remove a subscription using its secret token.
- */
 export async function unsubscribeFromCauses(
   token: string
 ): Promise<boolean> {

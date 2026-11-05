@@ -15,17 +15,9 @@ import {
   sendSubscriptionWelcomeEmail,
 } from "../services/subscriber-mail.service.js";
 
-/**
- * Public newsletter subscription routes.
- */
 const router = Router();
 
-/**
- * Basic development-only rate limiting.
- *
- * Production should use a proper shared
- * rate limiter to prevent abuse.
- */
+
 const requests = new Map<
   string,
   { count: number; resetAt: number }
@@ -55,11 +47,6 @@ router.use((req, res, next) => {
   next();
 });
 
-/**
- * POST /api/subscribers
- *
- * Save newsletter subscribers to MongoDB.
- */
 router.post("/", async (req, res) => {
   const parsed = subscribeValidation.safeParse(
     req.body
@@ -92,7 +79,6 @@ router.post("/", async (req, res) => {
       }
     }
 
-    // Do not disclose whether an email exists.
     res.status(200).json({
       success: true,
       message:
@@ -111,11 +97,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-/**
- * POST /api/subscribers/unsubscribe
- *
- * Requires the secret token from email.
- */
+
 router.post("/unsubscribe", async (req, res) => {
   const parsed = unsubscribeValidation.safeParse(
     req.body
